@@ -601,7 +601,7 @@ func (imp *MongoImport) getInputReader(in io.Reader) (InputReader, error) {
 	if imp.InputOptions.Type == CSV {
 		return NewCSVInputReader(colSpecs, in, out, imp.IngestOptions.NumDecodingWorkers, ignoreBlanks), nil
 	} else if imp.InputOptions.Type == TSV {
-		return NewTSVInputReader(colSpecs, in, out, imp.IngestOptions.NumDecodingWorkers, ignoreBlanks), nil
+		return NewTSVInputReader(colSpecs, in, out, imp.IngestOptions.NumDecodingWorkers, ignoreBlanks, imp.InputOptions.TsvDelim), nil
 	}
 	return NewJSONInputReader(imp.InputOptions.JSONArray, in, imp.IngestOptions.NumDecodingWorkers), nil
 }

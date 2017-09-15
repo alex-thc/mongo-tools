@@ -11,7 +11,6 @@ import (
 
 const (
 	entryDelimiter = '\n'
-	tokenSeparator = "\t"
 )
 
 // TSVInputReader is a struct that implements the InputReader interface for a
@@ -41,6 +40,9 @@ type TSVInputReader struct {
 
 	// ignoreBlanks is whether empty fields should be ignored
 	ignoreBlanks bool
+
+	// defines the token separator
+	tokenSeparator string
 }
 
 // TSVConverter implements the Converter interface for TSV input.
@@ -50,11 +52,12 @@ type TSVConverter struct {
 	index        uint64
 	ignoreBlanks bool
 	rejectWriter io.Writer
+	tokenSeparator string
 }
 
 // NewTSVInputReader returns a TSVInputReader configured to read input from the
 // given io.Reader, extracting the specified columns only.
-func NewTSVInputReader(colSpecs []ColumnSpec, in io.Reader, rejects io.Writer, numDecoders int, ignoreBlanks bool) *TSVInputReader {
+func NewTSVInputReader(colSpecs []ColumnSpec, in io.Reader, rejects io.Writer, numDecoders int, ignoreBlanks bool, tokenSeparator string) *TSVInputReader {
 	szCount := newSizeTrackingReader(newBomDiscardingReader(in))
 	return &TSVInputReader{
 		colSpecs:        colSpecs,
@@ -64,6 +67,7 @@ func NewTSVInputReader(colSpecs []ColumnSpec, in io.Reader, rejects io.Writer, n
 		numDecoders:     numDecoders,
 		sizeTracker:     szCount,
 		ignoreBlanks:    ignoreBlanks,
+		tokenSeparator:  tokenSeparator,
 	}
 }
 
@@ -74,7 +78,7 @@ func (r *TSVInputReader) ReadAndValidateHeader() (err error) {
 	if err != nil {
 		return err
 	}
-	for _, field := range strings.Split(header, tokenSeparator) {
+	for _, field := range strings.Split(header, r.tokenSeparator) {
 		r.colSpecs = append(r.colSpecs, ColumnSpec{
 			Name:   strings.TrimRight(field, "\r\n"),
 			Parser: new(FieldAutoParser),
@@ -91,7 +95,7 @@ func (r *TSVInputReader) ReadAndValidateTypedHeader(parseGrace ParseGrace) (err 
 		return err
 	}
 	var headerFields []string
-	for _, field := range strings.Split(header, tokenSeparator) {
+	for _, field := range strings.Split(header, r.tokenSeparator) {
 		headerFields = append(headerFields, strings.TrimRight(field, "\r\n"))
 	}
 	r.colSpecs, err = ParseTypedHeaders(headerFields, parseGrace)
@@ -129,6 +133,7 @@ func (r *TSVInputReader) StreamDocument(ordered bool, readDocs chan bson.D) (ret
 				index:        r.numProcessed,
 				ignoreBlanks: r.ignoreBlanks,
 				rejectWriter: r.tsvRejectWriter,
+				tokenSeparator: r.tokenSeparator,
 			}
 			r.numProcessed++
 		}
@@ -147,7 +152,7 @@ func (r *TSVInputReader) StreamDocument(ordered bool, readDocs chan bson.D) (ret
 func (c TSVConverter) Convert() (b bson.D, err error) {
 	b, err = tokensToBSON(
 		c.colSpecs,
-		strings.Split(strings.TrimRight(c.data, "\r\n"), tokenSeparator),
+		strings.Split(strings.TrimRight(c.data, "\r\n"), c.tokenSeparator),
 		c.index,
 		c.ignoreBlanks,
 	)
